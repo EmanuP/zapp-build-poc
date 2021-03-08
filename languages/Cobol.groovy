@@ -134,6 +134,9 @@ def createCobolParms(String buildFile, LogicalFile logicalFile) {
 	def errPrefixOptions = props.getFileProperty('cobol_compileErrorPrefixParms', buildFile) ?: ""
 	def compileDebugParms = props.getFileProperty('cobol_compileDebugParms', buildFile)
 
+	//Added for the PoC
+	def reportWriter = props.getFileProperty('cobol_reportWriterParms', buildFile) ?: ""
+
 	if (buildUtils.isCICS(logicalFile))
 		parms = "$parms,$cics"
 
@@ -147,6 +150,10 @@ def createCobolParms(String buildFile, LogicalFile logicalFile) {
 	if (props.debug)  {
 		parms = "$parms,$compileDebugParms"
 	}
+
+	// Report writer options (added for the PoC)
+	if	(props.cobol_writeReport)
+		parms = "$parms,$reportWriter"
 
 	if (parms.startsWith(','))
 		parms = parms.drop(1)
