@@ -16,6 +16,7 @@ import com.ibm.jzos.ZFile
 @Field def gitUtils= loadScript(new File("utilities/GitUtilities.groovy"))
 @Field def buildUtils= loadScript(new File("utilities/BuildUtilities.groovy"))
 @Field def impactUtils= loadScript(new File("utilities/ImpactUtilities.groovy"))
+@Field def lettresATXUtils= loadScript(new File("utilities/LettresATXUtilities.groovy"))
 @Field String hashPrefix = ':githash:'
 @Field RepositoryClient repositoryClient
 
