@@ -62,7 +62,7 @@ def scanSource(String buildFile, String srcPDS) {
 // create mvs commands
 	String member = CopyToPDS.createMemberName(buildFile)
 	
-	File logFile = new File( props.userBuild ? "${props.buildOutDir}/${member}_scan.log" : "${props.buildOutDir}/${member}_scan.letter.log")
+	File logFile = new File( props.userBuild ? "${props.buildOutDir}/${member}_scan.log" : "${props.buildOutDir}/${member}_scan.lettres.log")
 	if (logFile.exists())
 		logFile.delete()
 		
@@ -76,7 +76,7 @@ def scanSource(String buildFile, String srcPDS) {
 	MVSJob job = new MVSJob()
 	job.start()
 
-	// scan the letter dependencies
+	// scan the lettres dependencies
 	int rc = scan.execute()
 	int maxRC = 4
 
@@ -101,7 +101,7 @@ def createScanCommand(String buildFile, String srcPDS, String member, File depen
 	// define the MVSExec command to compile the program
 	MVSExec scan = new MVSExec().file(buildFile).pgm("PCPY05")
 
-	scan.dd(new DDStatement().name("PCPY0501").dsn("$latx_srcPDS($member)").options('shr'))
+	scan.dd(new DDStatement().name("PCPY0501").dsn("$lettres_srcPDS($member)").options('shr'))
 	scan.dd(new DDStatement().name("PCPY0502").output(True)
 	scan.dd(new DDStatement().name("SYSOUT").output(True)
 
