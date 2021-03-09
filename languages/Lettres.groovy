@@ -325,3 +325,10 @@ def createLinkeditCommand(String buildFile, String member, File logFile) {
 
 		return linked
 }
+
+def getRepositoryClient() {
+	if (!repositoryClient && props."dbb.RepositoryClient.url")
+		repositoryClient = new RepositoryClient().forceSSLTrusted(true)
+
+	return repositoryClient
+}
