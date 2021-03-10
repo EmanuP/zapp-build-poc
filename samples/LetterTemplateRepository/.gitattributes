@@ -16,5 +16,7 @@
 *.asm zos-working-tree-encoding=ibm-1047 git-encoding=utf-8
 *.jcl zos-working-tree-encoding=ibm-1047 git-encoding=utf-8
 *.mac zos-working-tree-encoding=ibm-1047 git-encoding=utf-8
+*.lhtml zos-working-tree-encoding=ibm-1047 git-encoding=utf-8
+*.latx zos-working-tree-encoding=ibm-1047 git-encoding=utf-8
 
 *.plbck binary
