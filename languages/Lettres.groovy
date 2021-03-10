@@ -53,11 +53,11 @@ sortedList.each { buildFile ->
 	MVSExec insertionCopies = createInsertionCopiesCommand(buildFile, member, logFile)
 	MVSExec recopieSource = createRecopieSourceCommand(buildFile, member, logFile)
 
-	if(props.getFileProperty('letter_atx', buildFile).equals('true')){
+	if(props.getFileProperty('letter_type', buildFile).equals('ATX')){
     	MVSExec controleSyntaxe = createControleSyntaxeATXCommand(buildFile, member, syntaxlogFile)
 	}
 
-	if(props.getFileProperty('letter_html', buildFile).equals('true')){
+	if(props.getFileProperty('letter_type', buildFile).equals('HTML')){
     	MVSExec controleSyntaxe = createControleSyntaxeHTMLCommand(buildFile, member, syntaxlogFile)
 	}
 
