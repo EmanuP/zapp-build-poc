@@ -11,6 +11,7 @@ import com.ibm.dbb.build.DBBConstants.CopyMode
 @Field BuildProperties props = BuildProperties.getInstance()
 @Field HashSet<String> copiedFileCache = new HashSet<String>()
 @Field def buildUtils= loadScript(new File("${props.zAppBuildDir}/utilities/BuildUtilities.groovy"))
+@Field RepositoryClient repositoryClient
 
 def copySourceFiles(String buildFile, String srcPDS, String dependencyPDS, String dependencyDIR) {
 	// only copy the build file once
@@ -24,9 +25,12 @@ def copySourceFiles(String buildFile, String srcPDS, String dependencyPDS, Strin
 
 	// resolve the logical dependencies to physical files to copy to data sets
 	if (dependencyPDS && dependencyDIR) {
-		List<PhysicalDependency> physicalDependencies = getDependencies(buildFile, srcPDS, dependencyDIR)
+		List<String> dependenciesNames = scanSource(buildFile, srcPDS)
+		if(!props.userBuild){
+			updateCollection(buildFile, dependenciesNames, dependencyDIR)
+		}
+		List<PhysicalDependency> physicalDependencies = getDependencies(dependenciesNames, dependencyDIR)
 		if (props.verbose) println "*** Physical dependencies for $buildFile:"
-
 		physicalDependencies.each { physicalDependency ->
 			if (props.verbose) println physicalDependency
 			if (physicalDependency.isResolved()) {
@@ -46,13 +50,27 @@ def copySourceFiles(String buildFile, String srcPDS, String dependencyPDS, Strin
 		}
 }
 
-def getDependencies(String buildFile, String srcPDS, String dependencyDIR) {
-	List<String> dependenciesNames = scanSource(buildFile, srcPDS)
-	List<PhysicalDependency> physicalDependencies = []
+def updateCollection(String buildFile, List<String> dependenciesNames, String dependencyDIR) {
+	List<LogicalFile> logicalFiles = []
 	List<LogicalDependency> logicalDependencies = []
 	dependenciesNames.each { name -> 
+			logicalFiles.add(new LogicalFile(name, "$dependencyDIR/$name", "LETTER", False, False, False))
+			logicalDependencies.add(new LogicalDependency(name, "COPY", "SYSLETT"))
+			}
+
+	String member = CopyToPDS.createMemberName(buildFile)
+	logicalFiles.add(new LogicalFile(member, buildFile, "LETTER", False, False, False).setLogicalDependencies(logicalDependencies))
+
+	println "** Storing ${logicalFiles.size()} logical files in repository collection '$props.applicationCollectionName'"
+	getRepositoryClient().saveLogicalFiles(props.applicationCollectionName, logicalFiles);	
+
+	return physicalDependencies
+}
+
+def getDependencies(List<String> dependenciesNames, String dependencyDIR) {
+	List<PhysicalDependency> physicalDependencies = []
+	dependenciesNames.each { name -> 
 			LogicalDependency logicalDependency = new LogicalDependency(name, "COPY", "SYSLIB")
-			logicalDependencies.add(logicalDependency)
 			physicalDependencies.add(new PhysicalDependency(logicalDependency, props.applicationCollectionName, getAbsolutePath(dependencyDIR), name))
 			}
 	return physicalDependencies
@@ -102,8 +120,8 @@ def createScanCommand(String buildFile, String srcPDS, String member, File depen
 	MVSExec scan = new MVSExec().file(buildFile).pgm("PCPY05")
 
 	scan.dd(new DDStatement().name("PCPY0501").dsn("$lettres_srcPDS($member)").options('shr'))
-	scan.dd(new DDStatement().name("PCPY0502").output(True)
-	scan.dd(new DDStatement().name("SYSOUT").output(True)
+	scan.dd(new DDStatement().name("PCPY0502").output(True))
+	scan.dd(new DDStatement().name("SYSOUT").output(True))
 
 	// add a copy command to the scan command to copy the SYSPRINT from the temporary dataset to an HFS log file
 	scan.copy(new CopyToHFS().ddName("PCPY0502").file(dependencyListFile).hfsEncoding(props.logEncoding))
@@ -117,10 +135,25 @@ def parseDependencyList(File dependencyListFile) {
 		// define the MVSExec command to compile the program
 		List<String> names = []
 		dependencyListFile.eachLine { line ->
-			def match = (line =~ /MEMBER NAME\s?=\s?(.+)\S/)
+			def match = (line =~ /MEMBER NAME\s?=\s?(.+)/)
 			if (match.find())
 				names.add(match.group(1))
 		}
 		
 		return names
 	}
+
+def updateCollection(RepositoryClient repositoryClient){
+	if (props.verbose)
+		println "** Storing ${logicalFiles.size()} logical files in repository collection '$props.applicationCollectionName'"
+	repositoryClient.saveLogicalFiles(props.applicationCollectionName, logicalFiles);
+	if (props.verbose) println(repositoryClient.getLastStatus())
+
+}
+
+def getRepositoryClient() {
+	if (!repositoryClient && props."dbb.RepositoryClient.url")
+		repositoryClient = new RepositoryClient().forceSSLTrusted(true)
+
+	return repositoryClient
+}
