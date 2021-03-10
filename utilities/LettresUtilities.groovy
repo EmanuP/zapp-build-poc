@@ -102,8 +102,8 @@ def createScanCommand(String buildFile, String srcPDS, String member, File depen
 	MVSExec scan = new MVSExec().file(buildFile).pgm("PCPY05")
 
 	scan.dd(new DDStatement().name("PCPY0501").dsn("$lettres_srcPDS($member)").options('shr'))
-	scan.dd(new DDStatement().name("PCPY0502").output(True)
-	scan.dd(new DDStatement().name("SYSOUT").output(True)
+	scan.dd(new DDStatement().name("PCPY0502").output(True))
+	scan.dd(new DDStatement().name("SYSOUT").output(True))
 
 	// add a copy command to the scan command to copy the SYSPRINT from the temporary dataset to an HFS log file
 	scan.copy(new CopyToHFS().ddName("PCPY0502").file(dependencyListFile).hfsEncoding(props.logEncoding))
@@ -117,7 +117,7 @@ def parseDependencyList(File dependencyListFile) {
 		// define the MVSExec command to compile the program
 		List<String> names = []
 		dependencyListFile.eachLine { line ->
-			def match = (line =~ /MEMBER NAME\s?=\s?(.+)\S/)
+			def match = (line =~ /MEMBER NAME\s?=\s?(.+)/)
 			if (match.find())
 				names.add(match.group(1))
 		}
