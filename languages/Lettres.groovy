@@ -21,7 +21,7 @@ def langQualifier = "lettres"
 buildUtils.createLanguageDatasets(langQualifier)
 
 // iterate through build list
-sortedList.each { buildFile ->
+argMap.buildList.each { buildFile ->
 	println "*** Building file $buildFile"
 
     String cpyDir = props.getFileProperty('lettres_cpyDir', buildFile)
