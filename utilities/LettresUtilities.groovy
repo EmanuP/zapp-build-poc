@@ -49,11 +49,9 @@ def copySourceFiles(String buildFile, String srcPDS, String dependencyPDS, Strin
 def getDependencies(String buildFile, String srcPDS, String dependencyDIR) {
 	List<String> dependenciesNames = scanSource(buildFile, srcPDS)
 	List<PhysicalDependency> physicalDependencies = []
-	List<LogicalDependency> logicalDependencies = []
 	dependenciesNames.each { name -> 
 			LogicalDependency logicalDependency = new LogicalDependency(name, "COPY", "SYSLIB")
-			logicalDependencies.add(logicalDependency)
-			PhysicalDependency physicalDependency= new PhysicalDependency(logicalDependency, props.applicationCollectionName, buildUtils.getAbsolutePath("$props.application/$dependencyDIR"), "${name}.cpy")
+			PhysicalDependency physicalDependency= new PhysicalDependency(logicalDependency, props.applicationCollectionName, buildUtils.getAbsolutePath("$dependencyDIR"), "${name}.cpy")
 			physicalDependency.setResolved(true)
 			physicalDependencies.add(physicalDependency)
 			}
