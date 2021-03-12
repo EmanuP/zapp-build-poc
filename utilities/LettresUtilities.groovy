@@ -32,7 +32,6 @@ def copySourceFiles(String buildFile, String srcPDS, String dependencyPDS, Strin
 			if (props.verbose) println physicalDependency
 			if (physicalDependency.isResolved()) {
 				String physicalDependencyLoc = "${physicalDependency.getSourceDir()}/${physicalDependency.getFile()}"
-
 				// only copy the dependency file once per script invocation
 				if (!copiedFileCache.contains(physicalDependencyLoc)) {
 					copiedFileCache.add(physicalDependencyLoc)
@@ -54,7 +53,9 @@ def getDependencies(String buildFile, String srcPDS, String dependencyDIR) {
 	dependenciesNames.each { name -> 
 			LogicalDependency logicalDependency = new LogicalDependency(name, "COPY", "SYSLIB")
 			logicalDependencies.add(logicalDependency)
-			physicalDependencies.add(new PhysicalDependency(logicalDependency, props.applicationCollectionName, getAbsolutePath(dependencyDIR), name))
+			PhysicalDependency physicalDependency= new PhysicalDependency(logicalDependency, props.applicationCollectionName, buildUtils.getAbsolutePath("$props.application/$dependencyDIR"), "${name}.cpy")
+			physicalDependency.setResolved(true)
+			physicalDependencies.add(physicalDependency)
 			}
 	return physicalDependencies
 }
