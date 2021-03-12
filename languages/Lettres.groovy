@@ -8,7 +8,7 @@ import com.ibm.jzos.ZFile
 // define script properties
 @Field BuildProperties props = BuildProperties.getInstance()
 @Field def buildUtils= loadScript(new File("${props.zAppBuildDir}/utilities/BuildUtilities.groovy"))
-@Field def lettreUtils= loadScript(new File("${props.zAppBuildDir}/utilities/LettresUtilities.groovy"))
+@Field def lettresUtils= loadScript(new File("${props.zAppBuildDir}/utilities/LettresUtilities.groovy"))
 @Field RepositoryClient repositoryClient
 
 println("** Building files mapped to ${this.class.getName()}.groovy script")
@@ -21,7 +21,7 @@ def langQualifier = "lettres"
 buildUtils.createLanguageDatasets(langQualifier)
 
 // iterate through build list
-sortedList.each { buildFile ->
+argMap.buildList.each { buildFile ->
 	println "*** Building file $buildFile"
 
     String cpyDir = props.getFileProperty('lettres_cpyDir', buildFile)
@@ -36,16 +36,16 @@ sortedList.each { buildFile ->
 		logFile.delete()
 
     File syntaxlogFile = new File("${props.buildOutDir}/${member}_syntax.log")
-	if (logFile.exists())
-		logFile.delete()
+	if (syntaxlogFile.exists())
+		syntaxlogFile.delete()
 
 	File assemblyLogFile = new File("${props.buildOutDir}/${member}_assembly.log")
-	if (logFile.exists())
-		logFile.delete()
+	if (assemblyLogFile.exists())
+		assemblyLogFile.delete()
 
     File linkEditLogFile = new File("${props.buildOutDir}/${member}_linkedit.log")
-	if (logFile.exists())
-		logFile.delete()
+	if (linkEditLogFile.exists())
+		linkEditLogFile.delete()
 
     // one per step in the original procedure
 	MVSExec rechercheCopies = createRechercheCopiesCommand(buildFile, member, logFile)
@@ -55,9 +55,7 @@ sortedList.each { buildFile ->
 
 	if(props.getFileProperty('letter_type', buildFile).equals('ATX')){
     	MVSExec controleSyntaxe = createControleSyntaxeATXCommand(buildFile, member, syntaxlogFile)
-	}
-
-	if(props.getFileProperty('letter_type', buildFile).equals('HTML')){
+	}else if(props.getFileProperty('letter_type', buildFile).equals('HTML')){
     	MVSExec controleSyntaxe = createControleSyntaxeHTMLCommand(buildFile, member, syntaxlogFile)
 	}
 
@@ -71,20 +69,20 @@ sortedList.each { buildFile ->
 
     // Recherche les copies
     int rc = rechercheCopies.execute()
-    boolean continueFlag = True
+    boolean continueFlag = true
 
     // If copies found
     if(rc == 0) { 
-        rc = obtentionCopies.execute.execute() 
+        rc = obtentionCopies.execute() 
         if (rc == 0){
             rc = insertionCopies.execute()            
         }
         else{
             String errorMsg = "*! The copies insertion return code ($rc) for $buildFile exceeded the maximum return code allowed (0)"
 		    println(errorMsg)
-		    props.error = "True"
+		    props.error = "true"
 		    buildUtils.updateBuildResult(errorMsg:errorMsg,logs:["${member}.log":logFile],client:getRepositoryClient())
-            continueFlag = False
+            continueFlag = false
         }
     }
     // no copies found
@@ -93,17 +91,17 @@ sortedList.each { buildFile ->
         if (rc > 0){ 
             String errorMsg = "*! The source copy return code ($rc) for $buildFile exceeded the maximum return code allowed (0)"
 		    println(errorMsg)
-		    props.error = "True"
+		    props.error = "true"
 		    buildUtils.updateBuildResult(errorMsg:errorMsg,logs:["${member}.log":logFile],client:getRepositoryClient())
-            continueFlag = False      
+            continueFlag = false      
         }
     }
     else { 
         String errorMsg = "*! The scanner return code ($rc) for $buildFile exceeded the maximum return code allowed (1)"
 		println(errorMsg)
-		props.error = "True"
+		props.error = "true"
 		buildUtils.updateBuildResult(errorMsg:errorMsg,logs:["${member}.log":logFile],client:getRepositoryClient())
-        continueFlag = False          
+        continueFlag = false          
 	}
 
     if(continueFlag){
@@ -111,9 +109,9 @@ sortedList.each { buildFile ->
         if(rc > 4){   
             String errorMsg = "*! The syntax check return code ($rc) for $buildFile exceeded the maximum return code allowed (4)"
 		    println(errorMsg)
-		    props.error = "True"
+		    props.error = "true"
 		    buildUtils.updateBuildResult(errorMsg:errorMsg,logs:["${member}_syntax.log":syntaxlogFile],client:getRepositoryClient())
-            continueFlag = False           
+            continueFlag = false           
         }
     }
 
@@ -122,9 +120,9 @@ sortedList.each { buildFile ->
         if(rc > 0){
             String errorMsg = "*! The table composition return code ($rc) for $buildFile exceeded the maximum return code allowed (0)"
 		    println(errorMsg)
-		    props.error = "True"
+		    props.error = "true"
 		    buildUtils.updateBuildResult(errorMsg:errorMsg,client:getRepositoryClient())
-            continueFlag = False                   
+            continueFlag = false                   
         }
     }
 
@@ -133,9 +131,9 @@ sortedList.each { buildFile ->
         if(rc > 0){
             String errorMsg = "*! The assembly return code ($rc) for $buildFile exceeded the maximum return code allowed (0)"
 		    println(errorMsg)
-		    props.error = "True"
+		    props.error = "true"
 		    buildUtils.updateBuildResult(errorMsg:errorMsg,logs:["${member}_assembly.log":assemblyLogFile],client:getRepositoryClient())
-            continueFlag = False                 
+            continueFlag = false                 
         }
     }
 
@@ -144,9 +142,9 @@ sortedList.each { buildFile ->
         if(rc > 8){
             String errorMsg = "*! The linkEdit return code ($rc) for $buildFile exceeded the maximum return code allowed (8)"
 		    println(errorMsg)
-		    props.error = "True"
+		    props.error = "true"
 		    buildUtils.updateBuildResult(errorMsg:errorMsg,logs:["${member}_linkedit.log":linkEditLogFile],client:getRepositoryClient())
-            continueFlag = False              
+            continueFlag = false              
         }
     }
 
@@ -159,12 +157,12 @@ def createRechercheCopiesCommand(String buildFile, String member, File logFile) 
 		// define the MVSExec command to compile the program
 		MVSExec scan = new MVSExec().file(buildFile).pgm("PCPY05")
 	
-		scan.dd(new DDStatement().name("PCPY0501").dsn("$lettres_srcPDS($member)").options('shr'))
-		scan.dd(new DDStatement().name("PCPY0502").dsn("&&WORK1").options(props.lettres_work1TempOptions).pass(True))
-		scan.dd(new DDStatement().name("SYSOUT").output(True))
+		scan.dd(new DDStatement().name("PCPY0501").dsn("$props.lettres_srcPDS($member)").options('shr'))
+		scan.dd(new DDStatement().name("PCPY0502").dsn("&&WORK1").options(props.lettres_work1TempOptions).pass(true))
+		scan.dd(new DDStatement().name("SYSOUT").output(true))
 
 		// add a copy command to the compile command to copy the SYSPRINT from the temporary dataset to an HFS log file
-		scan.copy(new CopyToHFS().ddName("SYSOUT").file(logFile).hfsEncoding(props.logEncoding).append(True))
+		scan.copy(new CopyToHFS().ddName("SYSOUT").file(logFile).hfsEncoding(props.logEncoding).append(true))
 
 		
 		return scan
@@ -176,17 +174,17 @@ def createObtentionCopiesCommand(String buildFile, String member, File logFile) 
 		MVSExec create = new MVSExec().file(buildFile).pgm("IEBPTPCH")
 	
 		create.dd(new DDStatement().name("SYSUT1").dsn("$props.lettres_cpyPDS").options('shr'))
-		create.dd(new DDStatement().name("SYSUT2").dsn("&&WORK2").options(props.lettres_work2TempOptions).pass(True))
-		create.dd(new DDStatement().name("SYSIN").dsn("&&WORK1").options('old,delete'))
+		create.dd(new DDStatement().name("SYSUT2").dsn("&&WORK2").options(props.lettres_work2TempOptions).pass(true))
+		create.dd(new DDStatement().name("SYSIN").dsn("&&WORK1").options('old'))
 		
-		create.dd(new DDStatement().name("SYSOUT").output(True))
-		create.dd(new DDStatement().name("SYSUDUMP").output(True))
-		create.dd(new DDStatement().name("SYSPRINT").output(True))
+		create.dd(new DDStatement().name("SYSOUT").output(true))
+		create.dd(new DDStatement().name("SYSUDUMP").output(true))
+		create.dd(new DDStatement().name("SYSPRINT").output(true))
 	
 		// add a copy command to the compile command to copy the SYSOUT,SYSDUMP and SYSPRINT from the temporary datasets to an HFS log file
-		create.copy(new CopyToHFS().ddName("SYSOUT").file(logFile).hfsEncoding(props.logEncoding).append(True))
-		create.copy(new CopyToHFS().ddName("SYSUDUMP").file(logFile).hfsEncoding(props.logEncoding).append(True))
-		create.copy(new CopyToHFS().ddName("SYSPRINT").file(logFile).hfsEncoding(props.logEncoding).append(True))
+		create.copy(new CopyToHFS().ddName("SYSOUT").file(logFile).hfsEncoding(props.logEncoding).append(true))
+		create.copy(new CopyToHFS().ddName("SYSUDUMP").file(logFile).hfsEncoding(props.logEncoding).append(true))
+		create.copy(new CopyToHFS().ddName("SYSPRINT").file(logFile).hfsEncoding(props.logEncoding).append(true))
 	
 		return create
 }
@@ -196,13 +194,13 @@ def createInsertionCopiesCommand(String buildFile, String member, File logFile) 
 		// define the MVSExec command to compile the program
 		MVSExec insert = new MVSExec().file(buildFile).pgm("PCPY06")
 
-		insert.dd(new DDStatement().name("SYSOUT").output(True))
+		insert.dd(new DDStatement().name("SYSOUT").output(true))
 		insert.dd(new DDStatement().name("PCPY0601").dsn("$props.lettres_srcPDS($member)").options('shr'))
-		insert.dd(new DDStatement().name("PCPY0602").dsn("&&WORK2").options('old,delete'))
-		insert.dd(new DDStatement().name("PCPY0603").dsn("&&WORK3").options(props.lettres_work3TempOptions).pass(True))
+		insert.dd(new DDStatement().name("PCPY0602").dsn("&&WORK2").options('old'))
+		insert.dd(new DDStatement().name("PCPY0603").dsn("&&WORK3").options(props.lettres_work3TempOptions).pass(true))
 	
 		// add a copy command to the compile command to copy the SYSOUT from the temporary dataset to an HFS log file
-		insert.copy(new CopyToHFS().ddName("SYSOUT").file(logFile).hfsEncoding(props.logEncoding).append(True))
+		insert.copy(new CopyToHFS().ddName("SYSOUT").file(logFile).hfsEncoding(props.logEncoding).append(true))
 		
 		return insert
 }
@@ -212,14 +210,14 @@ def createRecopieSourceCommand(String buildFile, String member, File logFile) {
 		// define the MVSExec command to compile the program
 		MVSExec recopy = new MVSExec().file(buildFile).pgm("IEBGENER")
 
-		recopy.dd(new DDStatement().name("SYSPRINT").output(True))
+		recopy.dd(new DDStatement().name("SYSPRINT").output(true))
 		recopy.dd(new DDStatement().name("SYSUT1").dsn("$props.lettres_srcPDS($member)").options('shr'))
-		recopy.dd(new DDStatement().name("SYSUT2").dsn("&&WORK3").options(props.lettres_work3TempOptions).pass(True))
+		recopy.dd(new DDStatement().name("SYSUT2").dsn("&&WORK3").options(props.lettres_work3TempOptions).pass(true))
 	
-        recopy.DD(new DDStatement().name("SYSIN").options("dummy blksize(80)"))
+        recopy.dd(new DDStatement().name("SYSIN").options("dummy blksize(80)"))
 
 		// add a copy command to the compile command to copy the SYSPRINT from the temporary dataset to an HFS log file
-		recopy.copy(new CopyToHFS().ddName("SYSPRINT").file(logFile).hfsEncoding(props.logEncoding).append(True))
+		recopy.copy(new CopyToHFS().ddName("SYSPRINT").file(logFile).hfsEncoding(props.logEncoding).append(true))
 		
 		return recopy
 }
@@ -232,7 +230,7 @@ def createCompositionTableCommand(String buildFile, String member) {
 		MVSExec table = new MVSExec().file(buildFile).pgm("PTXT02").parm(parms)
 
 		table.dd(new DDStatement().name("PTXT0201").dsn("&&WORK3").options('shr'))
-		table.dd(new DDStatement().name("PTXT0202").dsn("&&WK1").options(props.lettres_wk1TempOptions).pass(True))
+		table.dd(new DDStatement().name("PTXT0202").dsn("&&WK1").options(props.lettres_wk1TempOptions).pass(true))
 		
 		return table
 }
@@ -246,16 +244,16 @@ def createControleSyntaxeATXCommand(String buildFile, String member, File logFil
 
 		syntaxe.dd(new DDStatement().name("PATX0001").dsn("&&WORK3").options('shr'))
 
-		syntaxe.dd(new DDStatement().name("PATX0002").output(True))
-		syntaxe.dd(new DDStatement().name("SYSOUT").output(True))
-		syntaxe.dd(new DDStatement().name("SYSUDUMP").output(True))
-		syntaxe.dd(new DDStatement().name("CEEDUMP").output(True))
+		syntaxe.dd(new DDStatement().name("PATX0002").output(true))
+		syntaxe.dd(new DDStatement().name("SYSOUT").output(true))
+		syntaxe.dd(new DDStatement().name("SYSUDUMP").output(true))
+		syntaxe.dd(new DDStatement().name("CEEDUMP").output(true))
 		
 		// add a copy command to the compile command to copy the SYSOUT,SYSDUMP and CEEDUMP from the temporary datasets to an HFS log file
-		syntaxe.copy(new CopyToHFS().ddName("SYSOUT").file(logFile).hfsEncoding(props.logEncoding).append(True))
-		syntaxe.copy(new CopyToHFS().ddName("SYSUDUMP").file(logFile).hfsEncoding(props.logEncoding).append(True))
-		syntaxe.copy(new CopyToHFS().ddName("CEEDUMP").file(logFile).hfsEncoding(props.logEncoding).append(True))
-		syntaxe.copy(new CopyToHFS().ddName("PATX0002").file(logFile).hfsEncoding(props.logEncoding).append(True))
+		syntaxe.copy(new CopyToHFS().ddName("SYSOUT").file(logFile).hfsEncoding(props.logEncoding).append(true))
+		syntaxe.copy(new CopyToHFS().ddName("SYSUDUMP").file(logFile).hfsEncoding(props.logEncoding).append(true))
+		syntaxe.copy(new CopyToHFS().ddName("CEEDUMP").file(logFile).hfsEncoding(props.logEncoding).append(true))
+		syntaxe.copy(new CopyToHFS().ddName("PATX0002").file(logFile).hfsEncoding(props.logEncoding).append(true))
 		
 		return syntaxe
 }
@@ -269,18 +267,18 @@ def createControleSyntaxeHTMLCommand(String buildFile, String member, File logFi
 
 		syntaxe.dd(new DDStatement().name("PHTM0001").dsn("&&WORK3").options('shr'))
 
-		syntaxe.dd(new DDStatement().name("PHTM0002").output(True))
-		syntaxe.dd(new DDStatement().name("PHTM0003").output(True))
-		syntaxe.dd(new DDStatement().name("SYSOUT").output(True))
-		syntaxe.dd(new DDStatement().name("SYSUDUMP").output(True))
-		syntaxe.dd(new DDStatement().name("CEEDUMP").output(True))
+		syntaxe.dd(new DDStatement().name("PHTM0002").output(true))
+		syntaxe.dd(new DDStatement().name("PHTM0003").output(true))
+		syntaxe.dd(new DDStatement().name("SYSOUT").output(true))
+		syntaxe.dd(new DDStatement().name("SYSUDUMP").output(true))
+		syntaxe.dd(new DDStatement().name("CEEDUMP").output(true))
 		
 		// add a copy command to the compile command to copy the SYSOUT,SYSDUMP and CEEDUMP from the temporary datasets to an HFS log file
-		syntaxe.copy(new CopyToHFS().ddName("SYSOUT").file(logFile).hfsEncoding(props.logEncoding).append(True))
-		syntaxe.copy(new CopyToHFS().ddName("SYSUDUMP").file(logFile).hfsEncoding(props.logEncoding).append(True))
-		syntaxe.copy(new CopyToHFS().ddName("CEEDUMP").file(logFile).hfsEncoding(props.logEncoding).append(True))
-		syntaxe.copy(new CopyToHFS().ddName("PATX0002").file(logFile).hfsEncoding(props.logEncoding).append(True))
-		syntaxe.copy(new CopyToHFS().ddName("PATX0003").file(logFile).hfsEncoding(props.logEncoding).append(True))
+		syntaxe.copy(new CopyToHFS().ddName("SYSOUT").file(logFile).hfsEncoding(props.logEncoding).append(true))
+		syntaxe.copy(new CopyToHFS().ddName("SYSUDUMP").file(logFile).hfsEncoding(props.logEncoding).append(true))
+		syntaxe.copy(new CopyToHFS().ddName("CEEDUMP").file(logFile).hfsEncoding(props.logEncoding).append(true))
+		syntaxe.copy(new CopyToHFS().ddName("PHTM0002").file(logFile).hfsEncoding(props.logEncoding).append(true))
+		syntaxe.copy(new CopyToHFS().ddName("PHTM0003").file(logFile).hfsEncoding(props.logEncoding).append(true))
 		
 		return syntaxe
 }
@@ -292,16 +290,16 @@ def createAssemblageCommand(String buildFile, String member, File logFile) {
 		// define the MVSExec command to compile the program
 		MVSExec assemblage = new MVSExec().file(buildFile).pgm("ASMA90").parm(parms)
 		
-		assemblage.dd(new DDStatement().name("SYSLIN").dsn("&&OBJSET").options(props.lettres_objsTempOptions).pass(True))
-		assemblage.dd(new DDStatement().name("SYSIN").dsn("&&WK1").options('old,delete'))
+		assemblage.dd(new DDStatement().name("SYSLIN").dsn("&&OBJSET").options(props.lettres_objsTempOptions).pass(true))
+		assemblage.dd(new DDStatement().name("SYSIN").dsn("&&WK1").options('old'))
 		assemblage.dd(new DDStatement().name("SYSLIB").dsn("$props.MACLIB").options('shr'))
+		if (props.lettres_macroPDS && ZFile.dsExists("'${props.lettres_macroPDS}'"))
+			assemblage.dd(new DDStatement().dsn(props.lettres_macroPDS).options("shr"))
 
-		assemblage.dd(new DDStatement().name("SYSUT1").dsn("&&SYSUT1").options(props.lettres_assemblageSysutAssemblyTempOptions).pass(True))
-		assemblage.dd(new DDStatement().name("SYSUT2").dsn("&&SYSUT2").options(props.lettres_assemblageSysutAssemblyTempOptions).pass(True))
-		assemblage.dd(new DDStatement().name("SYSUT3").dsn("&&SYSUT3").options(props.lettres_assemblageSysutAssemblyTempOptions).pass(True))
+		assemblage.dd(new DDStatement().name("SYSUT1").dsn("&&SYSUT1").options(props.lettres_assemblageSysutAssemblyTempOptions).pass(true))
 		
-        assemblage.dd(new DDStatement().name("SYSPRINT").output(True))
-		assemblage.copy(new CopyToHFS().ddName("SYSPRINT").file(logFile).hfsEncoding(props.logEncoding).append(True)) 
+        assemblage.dd(new DDStatement().name("SYSPRINT").output(true))
+		assemblage.copy(new CopyToHFS().ddName("SYSPRINT").file(logFile).hfsEncoding(props.logEncoding).append(true)) 
 
 		return assemblage
 }
@@ -313,15 +311,15 @@ def createLinkeditCommand(String buildFile, String member, File logFile) {
 		// define the MVSExec command to compile the program
 		MVSExec linked = new MVSExec().file(buildFile).pgm("IEWL").parm(parms)
 		
-		linked.dd(new DDStatement().name("SYSLIN").dsn("&&OBJSET").options('old,delete'))
+		linked.dd(new DDStatement().name("SYSLIN").dsn("&&OBJSET").options('old'))
 
 		linked.dd(new DDStatement().name("SYSUT1").dsn("&&SYSUT1").options(props.lettres_linkeditSysutTempOptions))
 		linked.dd(new DDStatement().name("SYSLMOD").dsn("$props.lettres_loadPDS($member)").options('shr'))
-		linked.DD(new DDStatement().name("SYSIN").options("dummy"))
-        linked.DD(new DDStatement().name("SYSLIB").options("dummy blksize(80)"))
+		linked.dd(new DDStatement().name("SYSIN").options("dummy"))
+        linked.dd(new DDStatement().name("SYSLIB").options("dummy blksize(80)"))
 
-        linked.dd(new DDStatement().name("SYSPRINT").output(True))
-		linked.copy(new CopyToHFS().ddName("SYSPRINT").file(logFile).hfsEncoding(props.logEncoding).append(True))
+        linked.dd(new DDStatement().name("SYSPRINT").output(true))
+		linked.copy(new CopyToHFS().ddName("SYSPRINT").file(logFile).hfsEncoding(props.logEncoding).append(true))
 
 		return linked
 }

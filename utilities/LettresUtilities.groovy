@@ -15,6 +15,7 @@ import com.ibm.dbb.build.DBBConstants.CopyMode
 
 def copySourceFiles(String buildFile, String srcPDS, String dependencyPDS, String dependencyDIR) {
 	// only copy the build file once
+	println buildUtils.getAbsolutePath(buildFile)
 	if (!copiedFileCache.contains(buildFile)) {
 		copiedFileCache.add(buildFile)
 		new CopyToPDS().file(new File(buildUtils.getAbsolutePath(buildFile)))
@@ -35,7 +36,6 @@ def copySourceFiles(String buildFile, String srcPDS, String dependencyPDS, Strin
 			if (props.verbose) println physicalDependency
 			if (physicalDependency.isResolved()) {
 				String physicalDependencyLoc = "${physicalDependency.getSourceDir()}/${physicalDependency.getFile()}"
-
 				// only copy the dependency file once per script invocation
 				if (!copiedFileCache.contains(physicalDependencyLoc)) {
 					copiedFileCache.add(physicalDependencyLoc)
@@ -71,7 +71,10 @@ def getDependencies(List<String> dependenciesNames, String dependencyDIR) {
 	List<PhysicalDependency> physicalDependencies = []
 	dependenciesNames.each { name -> 
 			LogicalDependency logicalDependency = new LogicalDependency(name, "COPY", "SYSLIB")
-			physicalDependencies.add(new PhysicalDependency(logicalDependency, props.applicationCollectionName, getAbsolutePath(dependencyDIR), name))
+			logicalDependencies.add(logicalDependency)
+			PhysicalDependency physicalDependency= new PhysicalDependency(logicalDependency, props.applicationCollectionName, buildUtils.getAbsolutePath("$props.application/$dependencyDIR"), "${name}.cpy")
+			physicalDependency.setResolved(true)
+			physicalDependencies.add(physicalDependency)
 			}
 	return physicalDependencies
 }
@@ -119,9 +122,9 @@ def createScanCommand(String buildFile, String srcPDS, String member, File depen
 	// define the MVSExec command to compile the program
 	MVSExec scan = new MVSExec().file(buildFile).pgm("PCPY05")
 
-	scan.dd(new DDStatement().name("PCPY0501").dsn("$lettres_srcPDS($member)").options('shr'))
-	scan.dd(new DDStatement().name("PCPY0502").output(True))
-	scan.dd(new DDStatement().name("SYSOUT").output(True))
+	scan.dd(new DDStatement().name("PCPY0501").dsn("$srcPDS($member)").options('shr'))
+	scan.dd(new DDStatement().name("PCPY0502").output(true))
+	scan.dd(new DDStatement().name("SYSOUT").output(true))
 
 	// add a copy command to the scan command to copy the SYSPRINT from the temporary dataset to an HFS log file
 	scan.copy(new CopyToHFS().ddName("PCPY0502").file(dependencyListFile).hfsEncoding(props.logEncoding))
