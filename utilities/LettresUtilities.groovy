@@ -25,7 +25,7 @@ def copySourceFiles(String buildFile, String srcPDS, String dependencyPDS, Strin
 
 	List<String> dependenciesNames = scanSource(buildFile, srcPDS)
 	String rules = props.getFileProperty('lettres_resolutionRules', buildFile)
-	DependencyResolver dependencyResolver = createDependencyResolver(getLogicalFile(buildFile, dependenciesNames), String rules)
+	DependencyResolver dependencyResolver = createDependencyResolver(getLogicalFile(buildFile, dependenciesNames), rules)
 
 	// resolve the logical dependencies to physical files to copy to data sets
 	if (dependencyPDS) {
@@ -58,18 +58,19 @@ def copySourceFiles(String buildFile, String srcPDS, String dependencyPDS, Strin
 def getLogicalFile(String buildFile, List<String> dependenciesNames) {
 	List<LogicalDependency> logicalDependencies = []
 	dependenciesNames.each { name -> 
-			logicalDependencies.add(new LogicalDependency(name, "COPY", "SYSLETT"))
+			logicalDependencies.add(new LogicalDependency(name, "SYSLETT", "COPY"))
 			}
 	String member = CopyToPDS.createMemberName(buildFile)
-	LogicalDependency ld = new LogicalFile(member, buildFile, "LETTER", false, false, false)
-	ld.setLogicalDependencies(logicalDependencies)
-	return ld
+	LogicalFile lf = new LogicalFile(member, buildFile, "LETTER", false, false, false)
+	lf.setLogicalDependencies(logicalDependencies)
+	return lf
 }
 
 def createDependencyResolver(LogicalFile logicalFile, String rules) {
-	if (props.verbose) println "*** Creating dependency resolver for $buildFile with $rules rules"
+	if (props.verbose) println "*** Creating dependency resolver for ${logicalFile.getFile()} with $rules rules"
 	// create a dependency resolver for the build file
 	DependencyResolver resolver = new DependencyResolver().sourceDir(props.workspace)
+			.file(logicalFile.getFile())
 			.logicalFile(logicalFile)
 	// add resolution rules
 	if (rules)
