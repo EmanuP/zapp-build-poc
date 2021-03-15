@@ -75,17 +75,6 @@ def updateCollection(String buildFile, List<String> dependenciesNames, String de
 	return physicalDependencies
 }
 
-def getDependencies(List<String> dependenciesNames, String dependencyDIR) {
-	List<PhysicalDependency> physicalDependencies = []
-	dependenciesNames.each { name -> 
-			LogicalDependency logicalDependency = new LogicalDependency(name, "COPY", "SYSLETT")
-			PhysicalDependency physicalDependency= new PhysicalDependency(logicalDependency, props.applicationCollectionName, buildUtils.getAbsolutePath("$dependencyDIR"), "${name}.cpy")
-			physicalDependency.setResolved(true)
-			physicalDependencies.add(physicalDependency)
-			}
-	return physicalDependencies
-}
-
 def getLogicalFile(String buildFile, List<String> dependenciesNames) {
 	List<LogicalDependency> logicalDependencies = []
 	dependenciesNames.each { name -> 
