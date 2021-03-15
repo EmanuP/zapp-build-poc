@@ -24,13 +24,19 @@ def copySourceFiles(String buildFile, String srcPDS, String dependencyPDS, Strin
 				.execute()
 	}
 
+	// Create dependency resolver
+	List<String> dependenciesNames = scanSource(buildFile, srcPDS)
+    logicalFile logicalFile = getLogicalFile(buildFile, dependenciesNames)
+	String rules = props.lettresRule 	
+	DependencyResolver dependencyResolver = createDependencyResolver(logicalFile, rules)
+
+	if(!props.userBuild){
+		updateCollection(buildFile, dependenciesNames, dependencyDIR)
+	}
+
 	// resolve the logical dependencies to physical files to copy to data sets
 	if (dependencyPDS && dependencyDIR) {
-		List<String> dependenciesNames = scanSource(buildFile, srcPDS)
-		if(!props.userBuild){
-			updateCollection(buildFile, dependenciesNames, dependencyDIR)
-		}
-		List<PhysicalDependency> physicalDependencies = getDependencies(dependenciesNames, dependencyDIR)
+		List<PhysicalDependency> physicalDependencies = dependencyResolver.resolve()
 		if (props.verbose) println "*** Physical dependencies for $buildFile:"
 		physicalDependencies.each { physicalDependency ->
 			if (props.verbose) println physicalDependency
@@ -54,12 +60,14 @@ def updateCollection(String buildFile, List<String> dependenciesNames, String de
 	List<LogicalFile> logicalFiles = []
 	List<LogicalDependency> logicalDependencies = []
 	dependenciesNames.each { name -> 
-			logicalFiles.add(new LogicalFile(name, "$dependencyDIR/$name", "LETTER", False, False, False))
+			logicalFiles.add(new LogicalFile(name, "$dependencyDIR/$name", "LETTER", false, false, false))
 			logicalDependencies.add(new LogicalDependency(name, "COPY", "SYSLETT"))
 			}
 
 	String member = CopyToPDS.createMemberName(buildFile)
-	logicalFiles.add(new LogicalFile(member, buildFile, "LETTER", False, False, False).setLogicalDependencies(logicalDependencies))
+	LogicalDependency ld = new LogicalFile(member, buildFile, "LETTER", false, false, false)
+	ld.setLogicalDependencies(logicalDependencies)
+	logicalFiles.add(ld)
 
 	println "** Storing ${logicalFiles.size()} logical files in repository collection '$props.applicationCollectionName'"
 	getRepositoryClient().saveLogicalFiles(props.applicationCollectionName, logicalFiles);	
@@ -70,12 +78,38 @@ def updateCollection(String buildFile, List<String> dependenciesNames, String de
 def getDependencies(List<String> dependenciesNames, String dependencyDIR) {
 	List<PhysicalDependency> physicalDependencies = []
 	dependenciesNames.each { name -> 
-			LogicalDependency logicalDependency = new LogicalDependency(name, "COPY", "SYSLIB")
+			LogicalDependency logicalDependency = new LogicalDependency(name, "COPY", "SYSLETT")
 			PhysicalDependency physicalDependency= new PhysicalDependency(logicalDependency, props.applicationCollectionName, buildUtils.getAbsolutePath("$dependencyDIR"), "${name}.cpy")
 			physicalDependency.setResolved(true)
 			physicalDependencies.add(physicalDependency)
 			}
 	return physicalDependencies
+}
+
+def getLogicalFile(String buildFile, List<String> dependenciesNames) {
+	List<LogicalDependency> logicalDependencies = []
+	dependenciesNames.each { name -> 
+			logicalDependencies.add(new LogicalDependency(name, "COPY", "SYSLETT"))
+			}
+
+	String member = CopyToPDS.createMemberName(buildFile)
+	LogicalDependency ld = new LogicalFile(member, buildFile, "LETTER", false, false, false)
+	ld.setLogicalDependencies(logicalDependencies)
+
+	return ld
+}
+
+def createDependencyResolver(LogicalFile logicalFile, String rules) {
+	if (props.verbose) println "*** Creating dependency resolver for $buildFile with $rules rules"
+
+	// create a dependency resolver for the build file
+	DependencyResolver resolver = new DependencyResolver().sourceDir(props.workspace)
+			.logicalFile(logicalFile)
+	// add resolution rules
+	if (rules)
+		resolver.setResolutionRules(buildUtils.parseResolutionRules(rules))
+
+	return resolver
 }
 
 def scanSource(String buildFile, String srcPDS) {
@@ -101,7 +135,6 @@ def scanSource(String buildFile, String srcPDS) {
 	int maxRC = 4
 
 	if (rc > maxRC) {
-		bindFlag = false
 		String errorMsg = "*! The scanner return code ($rc) for $buildFile exceeded the maximum return code allowed ($maxRC)"
 		println(errorMsg)
 		props.error = "true"
