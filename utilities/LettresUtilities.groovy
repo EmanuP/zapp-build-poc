@@ -23,9 +23,18 @@ def copySourceFiles(String buildFile, String srcPDS, String dependencyPDS, Strin
 				.execute()
 	}
 
+	List<String> dependenciesNames = scanSource(buildFile, srcPDS)
+	String rules = props.getFileProperty('lettres_resolutionRules', buildFile)
+	DependencyResolver dependencyResolver = createDependencyResolver(getLogicalFile(buildFile, dependenciesNames), String rules)
+
 	// resolve the logical dependencies to physical files to copy to data sets
-	if (dependencyPDS && dependencyDIR) {
-		List<PhysicalDependency> physicalDependencies = getDependencies(buildFile, srcPDS, dependencyDIR)
+	if (dependencyPDS) {
+		
+		List<PhysicalDependency> physicalDependencies = dependencyResolver.resolve()
+		if (props.verbose) {
+			println "*** Resolution rules for $buildFile:"
+			dependencyResolver.getResolutionRules().each{ rule -> println rule }
+		}
 		if (props.verbose) println "*** Physical dependencies for $buildFile:"
 
 		physicalDependencies.each { physicalDependency ->
@@ -46,16 +55,26 @@ def copySourceFiles(String buildFile, String srcPDS, String dependencyPDS, Strin
 		}
 }
 
-def getDependencies(String buildFile, String srcPDS, String dependencyDIR) {
-	List<String> dependenciesNames = scanSource(buildFile, srcPDS)
-	List<PhysicalDependency> physicalDependencies = []
+def getLogicalFile(String buildFile, List<String> dependenciesNames) {
+	List<LogicalDependency> logicalDependencies = []
 	dependenciesNames.each { name -> 
-			LogicalDependency logicalDependency = new LogicalDependency(name, "COPY", "SYSLIB")
-			PhysicalDependency physicalDependency= new PhysicalDependency(logicalDependency, props.applicationCollectionName, buildUtils.getAbsolutePath("$dependencyDIR"), "${name}.cpy")
-			physicalDependency.setResolved(true)
-			physicalDependencies.add(physicalDependency)
+			logicalDependencies.add(new LogicalDependency(name, "COPY", "SYSLETT"))
 			}
-	return physicalDependencies
+	String member = CopyToPDS.createMemberName(buildFile)
+	LogicalDependency ld = new LogicalFile(member, buildFile, "LETTER", false, false, false)
+	ld.setLogicalDependencies(logicalDependencies)
+	return ld
+}
+
+def createDependencyResolver(LogicalFile logicalFile, String rules) {
+	if (props.verbose) println "*** Creating dependency resolver for $buildFile with $rules rules"
+	// create a dependency resolver for the build file
+	DependencyResolver resolver = new DependencyResolver().sourceDir(props.workspace)
+			.logicalFile(logicalFile)
+	// add resolution rules
+	if (rules)
+		resolver.setResolutionRules(buildUtils.parseResolutionRules(rules))
+	return resolver
 }
 
 def scanSource(String buildFile, String srcPDS) {
