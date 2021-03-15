@@ -13,7 +13,7 @@ import com.ibm.dbb.build.DBBConstants.CopyMode
 @Field def buildUtils= loadScript(new File("${props.zAppBuildDir}/utilities/BuildUtilities.groovy"))
 @Field RepositoryClient repositoryClient
 
-def copySourceFiles(String buildFile, String srcPDS, String dependencyPDS, String dependencyDIR) {
+def copySourceFiles(String buildFile, String srcPDS, String dependencyPDS) {
 	// only copy the build file once
 	println buildUtils.getAbsolutePath(buildFile)
 	if (!copiedFileCache.contains(buildFile)) {
@@ -24,20 +24,26 @@ def copySourceFiles(String buildFile, String srcPDS, String dependencyPDS, Strin
 				.execute()
 	}
 
-	// Create dependency resolver
 	List<String> dependenciesNames = scanSource(buildFile, srcPDS)
-    logicalFile logicalFile = getLogicalFile(buildFile, dependenciesNames)
-	String rules = props.lettresRule 	
-	DependencyResolver dependencyResolver = createDependencyResolver(logicalFile, rules)
+	String rules = props.getFileProperty('lettres_resolutionRules', buildFile)
+	LogicalFile logicalfile = getLogicalFile(buildFile, dependenciesNames)
+	DependencyResolver dependencyResolver = createDependencyResolver(logicalfile, rules)
 
 	if(!props.userBuild){
-		updateCollection(buildFile, dependenciesNames, dependencyDIR)
+		println "** Storing source logical files in repository collection '$props.applicationCollectionName'"
+		getRepositoryClient().saveLogicalFiles(props.applicationCollectionName, [logicalFile]);	
 	}
 
 	// resolve the logical dependencies to physical files to copy to data sets
-	if (dependencyPDS && dependencyDIR) {
+	if (dependencyPDS) {
+		
 		List<PhysicalDependency> physicalDependencies = dependencyResolver.resolve()
+		if (props.verbose) {
+			println "*** Resolution rules for $buildFile:"
+			dependencyResolver.getResolutionRules().each{ rule -> println rule }
+		}
 		if (props.verbose) println "*** Physical dependencies for $buildFile:"
+
 		physicalDependencies.each { physicalDependency ->
 			if (props.verbose) println physicalDependency
 			if (physicalDependency.isResolved()) {
@@ -56,48 +62,25 @@ def copySourceFiles(String buildFile, String srcPDS, String dependencyPDS, Strin
 		}
 }
 
-def updateCollection(String buildFile, List<String> dependenciesNames, String dependencyDIR) {
-	List<LogicalFile> logicalFiles = []
-	List<LogicalDependency> logicalDependencies = []
-	dependenciesNames.each { name -> 
-			logicalFiles.add(new LogicalFile(name, "$dependencyDIR/$name", "LETTER", false, false, false))
-			logicalDependencies.add(new LogicalDependency(name, "COPY", "SYSLETT"))
-			}
-
-	String member = CopyToPDS.createMemberName(buildFile)
-	LogicalDependency ld = new LogicalFile(member, buildFile, "LETTER", false, false, false)
-	ld.setLogicalDependencies(logicalDependencies)
-	logicalFiles.add(ld)
-
-	println "** Storing ${logicalFiles.size()} logical files in repository collection '$props.applicationCollectionName'"
-	getRepositoryClient().saveLogicalFiles(props.applicationCollectionName, logicalFiles);	
-
-	return physicalDependencies
-}
-
 def getLogicalFile(String buildFile, List<String> dependenciesNames) {
 	List<LogicalDependency> logicalDependencies = []
 	dependenciesNames.each { name -> 
 			logicalDependencies.add(new LogicalDependency(name, "COPY", "SYSLETT"))
 			}
-
 	String member = CopyToPDS.createMemberName(buildFile)
 	LogicalDependency ld = new LogicalFile(member, buildFile, "LETTER", false, false, false)
 	ld.setLogicalDependencies(logicalDependencies)
-
 	return ld
 }
 
 def createDependencyResolver(LogicalFile logicalFile, String rules) {
 	if (props.verbose) println "*** Creating dependency resolver for $buildFile with $rules rules"
-
 	// create a dependency resolver for the build file
 	DependencyResolver resolver = new DependencyResolver().sourceDir(props.workspace)
 			.logicalFile(logicalFile)
 	// add resolution rules
 	if (rules)
 		resolver.setResolutionRules(buildUtils.parseResolutionRules(rules))
-
 	return resolver
 }
 
