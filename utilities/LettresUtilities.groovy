@@ -15,7 +15,6 @@ import com.ibm.dbb.build.DBBConstants.CopyMode
 
 def copySourceFiles(String buildFile, String srcPDS, String dependencyPDS) {
 	// only copy the build file once
-	println buildUtils.getAbsolutePath(buildFile)
 	if (!copiedFileCache.contains(buildFile)) {
 		copiedFileCache.add(buildFile)
 		new CopyToPDS().file(new File(buildUtils.getAbsolutePath(buildFile)))
