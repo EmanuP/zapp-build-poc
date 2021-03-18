@@ -5,14 +5,16 @@ def linuxAgent = 'master'
 def agentLabel = 'zOS-Agent'
 
 // Verbose
-def verbose = false
 def buildVerbose = ''
 
 // GIT
 def gitCred = 'Git'
 def gitHost = '172.26.86.20'
 
-def srcGitRepo =   'git@'+gitHost+':SAM.git'
+// Application Name
+def application = 'SAM'
+
+def srcGitRepo =   'git@'+gitHost+':'+application+'.git'
 def srcGitBranch = 'master'
 	
 // Build type
@@ -24,10 +26,6 @@ def buildType='-f'
 // Build extra args
 //  -d: COBOL debug options
 def buildExtraParams='-d'
-	
-// code coverage daemon port
-def ccPORT='8005'
-def CCDIR='/Appliance/IDz14.2.1'
 
 pipeline {
 
@@ -43,9 +41,9 @@ pipeline {
 			agent { label agentLabel }
 			steps {
 				script {
-					 dir('SAM') {
+					 dir(application) {
                             buildType='-f'
-                            scmVars = checkout([$class: 'GitSCM', branches: [[name: 'master']], 
+                            scmVars = checkout([$class: 'GitSCM', branches: [[name: srcGitBranch]], 
                                                 doGenerateSubmoduleConfigurations: false, 
                                                 submoduleCfg: [],								                    
                                                 userRemoteConfigs: [[
@@ -61,7 +59,7 @@ pipeline {
 			steps {
 				script{
 					node( agentLabel ) {					
-						sh "groovyz ${WORKSPACE}/genapp/zAppBuild/build.groovy --logEncoding UTF-8 -w ${WORKSPACE} --application SAM --sourceDir ${WORKSPACE}  --workDir ${WORKSPACE}/BUILD-${BUILD_NUMBER}  --hlq ${dbbHlq}.DBB $buildType  $buildVerbose $buildExtraParams "					
+						sh "groovyz ${WORKSPACE}/genapp/zAppBuild/build.groovy --logEncoding UTF-8 -w ${WORKSPACE} --application ${application} --sourceDir ${WORKSPACE} --workDir ${WORKSPACE}/BUILD-${BUILD_NUMBER}  --hlq ${dbbHlq}.DBB ${buildType} ${buildVerbose} ${buildExtraParams}"					
  					}
 				}
 			}
