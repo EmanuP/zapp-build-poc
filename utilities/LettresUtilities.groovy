@@ -11,6 +11,7 @@ import com.ibm.dbb.build.DBBConstants.CopyMode
 @Field BuildProperties props = BuildProperties.getInstance()
 @Field HashSet<String> copiedFileCache = new HashSet<String>()
 @Field def buildUtils= loadScript(new File("${props.zAppBuildDir}/utilities/BuildUtilities.groovy"))
+@Field RepositoryClient repositoryClient
 
 def copySourceFiles(String buildFile, String srcPDS, String dependencyPDS, String dependencyDIR) {
 	// only copy the build file once
