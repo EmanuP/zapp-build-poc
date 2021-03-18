@@ -247,8 +247,6 @@ def createControleSyntaxeATXCommand(String buildFile, String member, File logFil
 	
 		// define the MVSExec command to compile the program
 		MVSExec syntaxe = new MVSExec().file(buildFile).pgm("PATX00")
-		
-		syntaxe.dd(new DDStatement().name("STEPLIB").dsn("$props.lettres_syntaxe_steplib").options('shr'))
 
 		syntaxe.dd(new DDStatement().name("PATX0001").dsn("&&WORK3").options('shr').pass(true))
 
@@ -270,8 +268,6 @@ def createControleSyntaxeHTMLCommand(String buildFile, String member, File logFi
 	
 		// define the MVSExec command to compile the program
 		MVSExec syntaxe = new MVSExec().file(buildFile).pgm("PHTM00")
-		
-		syntaxe.dd(new DDStatement().name("STEPLIB").dsn("$props.lettres_syntaxe_steplib").options('shr'))
 
 		syntaxe.dd(new DDStatement().name("PHTM0001").dsn("&&WORK3").options('shr').pass(true))
 
@@ -298,7 +294,7 @@ def createAssemblageCommand(String buildFile, String member, File logFile) {
 		// define the MVSExec command to compile the program
 		MVSExec assemblage = new MVSExec().file(buildFile).pgm("ASMA90").parm(parms)
 		
-		assemblage.dd(new DDStatement().name("SYSLIN").dsn("&&OBJSET").options(props.lettres_objsTempOptions).pass(true))
+		assemblage.dd(new DDStatement().name("SYSLIN").dsn("${props.lettres_objPDS}($member)").options('shr').output(true))
 		assemblage.dd(new DDStatement().name("SYSIN").dsn("&&WK1").options('old'))
 		assemblage.dd(new DDStatement().name("SYSLIB").dsn("$props.MACLIB").options('shr'))
 		if (props.lettres_macroPDS && ZFile.dsExists("'${props.lettres_macroPDS}'"))
@@ -319,7 +315,7 @@ def createLinkeditCommand(String buildFile, String member, File logFile) {
 		// define the MVSExec command to compile the program
 		MVSExec linked = new MVSExec().file(buildFile).pgm("IEWL").parm(parms)
 
-		linked.dd(new DDStatement().name("SYSLIN").dsn("&&OBJSET").options('old'))
+		linked.dd(new DDStatement().name("SYSLIN").dsn("${props.lettres_objPDS}($member)").options('shr'))
 
 		linked.dd(new DDStatement().name("SYSUT1").dsn("&&SYSUT1").options(props.lettres_linkeditSysutTempOptions))
 		linked.dd(new DDStatement().name("SYSLMOD").dsn("$props.lettres_loadPDS($member)").options('shr'))
