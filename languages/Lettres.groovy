@@ -24,10 +24,8 @@ buildUtils.createLanguageDatasets(langQualifier)
 argMap.buildList.each { buildFile ->
 	println "*** Building file $buildFile"
 
-    String cpyDir = props.getFileProperty('lettres_cpyDir', buildFile)
-
 	// copy build file and dependency files to data sets
-	lettresUtils.copySourceFiles(buildFile, props.lettres_srcPDS, props.lettres_cpyPDS, cpyDir)
+	lettresUtils.copySourceFiles(buildFile, props.lettres_srcPDS, props.lettres_cpyPDS)
 
 	// create mvs commands
 	String member = CopyToPDS.createMemberName(buildFile)
