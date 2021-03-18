@@ -143,3 +143,10 @@ def parseDependencyList(File dependencyListFile) {
 		
 		return names
 	}
+
+def getRepositoryClient() {
+	if (!repositoryClient && props."dbb.RepositoryClient.url")
+		repositoryClient = new RepositoryClient().forceSSLTrusted(true)
+
+	return repositoryClient
+}
