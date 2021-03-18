@@ -35,9 +35,13 @@ argMap.buildList.each { buildFile ->
 	if (logFile.exists())
 		logFile.delete()
 
-    File syntaxlogFile = new File("${props.buildOutDir}/${member}_syntax.log")
-	if (syntaxlogFile.exists())
-		syntaxlogFile.delete()
+	File tableLogFile = new File("${props.buildOutDir}/${member}_table.log")
+	if (tableLogFile.exists())
+		tableLogFile.delete()
+
+    File syntaxLogFile = new File("${props.buildOutDir}/${member}_syntax.log")
+	if (syntaxLogFile.exists())
+		syntaxLogFile.delete()
 
 	File assemblyLogFile = new File("${props.buildOutDir}/${member}_assembly.log")
 	if (assemblyLogFile.exists())
@@ -52,14 +56,15 @@ argMap.buildList.each { buildFile ->
     MVSExec obtentionCopies = createObtentionCopiesCommand(buildFile, member, logFile)
 	MVSExec insertionCopies = createInsertionCopiesCommand(buildFile, member, logFile)
 	MVSExec recopieSource = createRecopieSourceCommand(buildFile, member, logFile)
+	MVSExec controleSyntaxe = null
 
 	if(props.getFileProperty('letter_type', buildFile).equals('ATX')){
-    	MVSExec controleSyntaxe = createControleSyntaxeATXCommand(buildFile, member, syntaxlogFile)
+    	controleSyntaxe = createControleSyntaxeATXCommand(buildFile, member, syntaxLogFile)
 	}else if(props.getFileProperty('letter_type', buildFile).equals('HTML')){
-    	MVSExec controleSyntaxe = createControleSyntaxeHTMLCommand(buildFile, member, syntaxlogFile)
+    	controleSyntaxe = createControleSyntaxeHTMLCommand(buildFile, member, syntaxLogFile)
 	}
 
-    MVSExec compositionTable = createCompositionTableCommand(buildFile, member)
+    MVSExec compositionTable = createCompositionTableCommand(buildFile, member, tableLogFile)
     MVSExec assemblage = createAssemblageCommand(buildFile, member, assemblyLogFile)
 	MVSExec linkedit = createLinkeditCommand(buildFile, member, linkEditLogFile)
 
@@ -110,7 +115,7 @@ argMap.buildList.each { buildFile ->
             String errorMsg = "*! The syntax check return code ($rc) for $buildFile exceeded the maximum return code allowed (4)"
 		    println(errorMsg)
 		    props.error = "true"
-		    buildUtils.updateBuildResult(errorMsg:errorMsg,logs:["${member}_syntax.log":syntaxlogFile],client:getRepositoryClient())
+		    buildUtils.updateBuildResult(errorMsg:errorMsg,logs:["${member}_syntax.log":syntaxLogFile],client:getRepositoryClient())
             continueFlag = false           
         }
     }
@@ -222,7 +227,7 @@ def createRecopieSourceCommand(String buildFile, String member, File logFile) {
 		return recopy
 }
 
-def createCompositionTableCommand(String buildFile, String member) {
+def createCompositionTableCommand(String buildFile, String member, File logFile) {
 
 		def parms = props.getFileProperty('lettres_tableCreationParms', buildFile) ?: ""
 	
@@ -231,6 +236,10 @@ def createCompositionTableCommand(String buildFile, String member) {
 
 		table.dd(new DDStatement().name("PTXT0201").dsn("&&WORK3").options('shr'))
 		table.dd(new DDStatement().name("PTXT0202").dsn("&&WK1").options(props.lettres_wk1TempOptions).pass(true))
+		table.dd(new DDStatement().name("SYSOUT").output(true))
+
+		// add a copy command to the compile command to copy the SYSOUT,SYSDUMP and CEEDUMP from the temporary datasets to an HFS log file
+		table.copy(new CopyToHFS().ddName("SYSOUT").file(logFile).hfsEncoding(props.logEncoding).append(true))		
 		
 		return table
 }
@@ -239,10 +248,8 @@ def createControleSyntaxeATXCommand(String buildFile, String member, File logFil
 	
 		// define the MVSExec command to compile the program
 		MVSExec syntaxe = new MVSExec().file(buildFile).pgm("PATX00")
-		
-		syntaxe.dd(new DDStatement().name("STEPLIB").dsn("$props.lettres_syntaxe_steplib").options('shr'))
 
-		syntaxe.dd(new DDStatement().name("PATX0001").dsn("&&WORK3").options('shr'))
+		syntaxe.dd(new DDStatement().name("PATX0001").dsn("&&WORK3").options('shr').pass(true))
 
 		syntaxe.dd(new DDStatement().name("PATX0002").output(true))
 		syntaxe.dd(new DDStatement().name("SYSOUT").output(true))
@@ -262,10 +269,8 @@ def createControleSyntaxeHTMLCommand(String buildFile, String member, File logFi
 	
 		// define the MVSExec command to compile the program
 		MVSExec syntaxe = new MVSExec().file(buildFile).pgm("PHTM00")
-		
-		syntaxe.dd(new DDStatement().name("STEPLIB").dsn("$props.lettres_syntaxe_steplib").options('shr'))
 
-		syntaxe.dd(new DDStatement().name("PHTM0001").dsn("&&WORK3").options('shr'))
+		syntaxe.dd(new DDStatement().name("PHTM0001").dsn("&&WORK3").options('shr').pass(true))
 
 		syntaxe.dd(new DDStatement().name("PHTM0002").output(true))
 		syntaxe.dd(new DDStatement().name("PHTM0003").output(true))
@@ -290,13 +295,13 @@ def createAssemblageCommand(String buildFile, String member, File logFile) {
 		// define the MVSExec command to compile the program
 		MVSExec assemblage = new MVSExec().file(buildFile).pgm("ASMA90").parm(parms)
 		
-		assemblage.dd(new DDStatement().name("SYSLIN").dsn("&&OBJSET").options(props.lettres_objsTempOptions).pass(true))
+		assemblage.dd(new DDStatement().name("SYSLIN").dsn("${props.lettres_objPDS}($member)").options('shr').output(true))
 		assemblage.dd(new DDStatement().name("SYSIN").dsn("&&WK1").options('old'))
 		assemblage.dd(new DDStatement().name("SYSLIB").dsn("$props.MACLIB").options('shr'))
 		if (props.lettres_macroPDS && ZFile.dsExists("'${props.lettres_macroPDS}'"))
 			assemblage.dd(new DDStatement().dsn(props.lettres_macroPDS).options("shr"))
 
-		assemblage.dd(new DDStatement().name("SYSUT1").dsn("&&SYSUT1").options(props.lettres_assemblageSysutAssemblyTempOptions).pass(true))
+		assemblage.dd(new DDStatement().name("SYSUT1").dsn("&&SYSUT1").options(props.lettres_assemblageSysutAssemblyTempOptions))
 		
         assemblage.dd(new DDStatement().name("SYSPRINT").output(true))
 		assemblage.copy(new CopyToHFS().ddName("SYSPRINT").file(logFile).hfsEncoding(props.logEncoding).append(true)) 
@@ -310,8 +315,8 @@ def createLinkeditCommand(String buildFile, String member, File logFile) {
 	
 		// define the MVSExec command to compile the program
 		MVSExec linked = new MVSExec().file(buildFile).pgm("IEWL").parm(parms)
-		
-		linked.dd(new DDStatement().name("SYSLIN").dsn("&&OBJSET").options('old'))
+
+		linked.dd(new DDStatement().name("SYSLIN").dsn("${props.lettres_objPDS}($member)").options('shr'))
 
 		linked.dd(new DDStatement().name("SYSUT1").dsn("&&SYSUT1").options(props.lettres_linkeditSysutTempOptions))
 		linked.dd(new DDStatement().name("SYSLMOD").dsn("$props.lettres_loadPDS($member)").options('shr'))
