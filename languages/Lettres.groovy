@@ -56,11 +56,12 @@ argMap.buildList.each { buildFile ->
     MVSExec obtentionCopies = createObtentionCopiesCommand(buildFile, member, logFile)
 	MVSExec insertionCopies = createInsertionCopiesCommand(buildFile, member, logFile)
 	MVSExec recopieSource = createRecopieSourceCommand(buildFile, member, logFile)
+	MVSExec controleSyntaxe = null
 
 	if(props.getFileProperty('letter_type', buildFile).equals('ATX')){
-    	MVSExec controleSyntaxe = createControleSyntaxeATXCommand(buildFile, member, syntaxLogFile)
+    	controleSyntaxe = createControleSyntaxeATXCommand(buildFile, member, syntaxLogFile)
 	}else if(props.getFileProperty('letter_type', buildFile).equals('HTML')){
-    	MVSExec controleSyntaxe = createControleSyntaxeHTMLCommand(buildFile, member, syntaxLogFile)
+    	controleSyntaxe = createControleSyntaxeHTMLCommand(buildFile, member, syntaxLogFile)
 	}
 
     MVSExec compositionTable = createCompositionTableCommand(buildFile, member, tableLogFile)
