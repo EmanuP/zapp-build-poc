@@ -128,10 +128,11 @@ sortedList.each { buildFile ->
  * createCobolParms - Builds up the COBOL compiler parameter list from build and file properties
  */
 def createCobolParms(String buildFile, LogicalFile logicalFile) {
+	String parms = ""
 	if (props.debug)  {
-		def parms = props.getFileProperty('cobol_compileParms', buildFile) ?: ""
+		parms = props.getFileProperty('cobol_compileParms', buildFile) ?: ""
 	} else{
-		def parms = props.getFileProperty('cobol_debugCompileParms', buildFile) ?: ""
+		parms = props.getFileProperty('cobol_debugCompileParms', buildFile) ?: ""
 	}
 	def cics = props.getFileProperty('cobol_compileCICSParms', buildFile) ?: ""
 	def sql = props.getFileProperty('cobol_compileSQLParms', buildFile) ?: ""
