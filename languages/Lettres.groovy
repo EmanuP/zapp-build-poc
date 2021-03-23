@@ -25,7 +25,7 @@ argMap.buildList.each { buildFile ->
 	println "*** Building file $buildFile"
 
 	// copy build file and dependency files to data sets
-	lettresUtils.copySourceFiles(buildFile, props.lettres_srcPDS, props.lettres_cpyPDS)
+	lettresUtils.copySourceFiles(buildFile, props.lettres_srcPDS, props.lettres_cpyPDS, getRepositoryClient())
 
 	// create mvs commands
 	String member = CopyToPDS.createMemberName(buildFile)

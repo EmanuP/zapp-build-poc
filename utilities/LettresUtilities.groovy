@@ -11,9 +11,8 @@ import com.ibm.dbb.build.DBBConstants.CopyMode
 @Field BuildProperties props = BuildProperties.getInstance()
 @Field HashSet<String> copiedFileCache = new HashSet<String>()
 @Field def buildUtils= loadScript(new File("${props.zAppBuildDir}/utilities/BuildUtilities.groovy"))
-@Field RepositoryClient repositoryClient
 
-def copySourceFiles(String buildFile, String srcPDS, String dependencyPDS) {
+def copySourceFiles(String buildFile, String srcPDS, String dependencyPDS, RepositoryClient repositoryClient) {
 	// only copy the build file once
 	if (!copiedFileCache.contains(buildFile)) {
 		copiedFileCache.add(buildFile)
@@ -23,14 +22,13 @@ def copySourceFiles(String buildFile, String srcPDS, String dependencyPDS) {
 				.execute()
 	}
 
-	List<String> dependenciesNames = scanSource(buildFile, srcPDS)
+	List<String> dependenciesNames = scanSource(buildFile, srcPDS, repositoryClient)
 	String rules = props.getFileProperty('lettres_resolutionRules', buildFile)
 	LogicalFile logicalfile = getLogicalFile(buildFile, dependenciesNames)
 	DependencyResolver dependencyResolver = createDependencyResolver(logicalfile, rules)
 
 	if(!props.userBuild){
-		println "** Storing source logical files in repository collection '$props.applicationCollectionName'"
-		getRepositoryClient().saveLogicalFiles(props.applicationCollectionName, [logicalFile]);	
+		updateCollection([logicalfile], repositoryClient)	
 	}
 
 	// resolve the logical dependencies to physical files to copy to data sets
@@ -84,7 +82,7 @@ def createDependencyResolver(LogicalFile logicalFile, String rules) {
 	return resolver
 }
 
-def scanSource(String buildFile, String srcPDS) {
+def scanSource(String buildFile, String srcPDS, RepositoryClient repositoryClient) {
 // create mvs commands
 	String member = CopyToPDS.createMemberName(buildFile)
 	
@@ -110,7 +108,7 @@ def scanSource(String buildFile, String srcPDS) {
 		String errorMsg = "*! The scanner return code ($rc) for $buildFile exceeded the maximum return code allowed ($maxRC)"
 		println(errorMsg)
 		props.error = "true"
-		buildUtils.updateBuildResult(errorMsg:errorMsg,logs:["${member}_scan.log":logFile],client:getRepositoryClient())
+		buildUtils.updateBuildResult(errorMsg:errorMsg,logs:["${member}_scan.log":logFile],client:repositoryClient)
 	}
 
 	// clean up passed DD statements
@@ -150,17 +148,15 @@ def parseDependencyList(File dependencyListFile) {
 		return names
 	}
 
-def updateCollection(RepositoryClient repositoryClient){
+def updateCollection(List<LogicalFile> logicalFiles, RepositoryClient repositoryClient){
+	if (!repositoryClient) {
+		if (props.verbose) println "** Unable to update collections. No repository client."
+		return
+	}
+
+	if (props.verbose) println "** Updating collections ${props.applicationCollectionName} and ${props.applicationOutputsCollectionName}"
 	if (props.verbose)
 		println "** Storing ${logicalFiles.size()} logical files in repository collection '$props.applicationCollectionName'"
 	repositoryClient.saveLogicalFiles(props.applicationCollectionName, logicalFiles);
 	if (props.verbose) println(repositoryClient.getLastStatus())
-
-}
-
-def getRepositoryClient() {
-	if (!repositoryClient && props."dbb.RepositoryClient.url")
-		repositoryClient = new RepositoryClient().forceSSLTrusted(true)
-
-	return repositoryClient
 }
