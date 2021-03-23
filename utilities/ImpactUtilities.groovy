@@ -262,7 +262,8 @@ def updateCollection(changedFiles, deletedFiles, renamedFiles, RepositoryClient 
 	if (props.verbose) println "** Updating collections ${props.applicationCollectionName} and ${props.applicationOutputsCollectionName}"
 	//def scanner = new DependencyScanner()
 	List<LogicalFile> logicalFiles = new ArrayList<LogicalFile>()
-	List<PathMatcher> excludeMatchers = createPathMatcherPattern(props.excludeFileList)
+	excludeFileList = "$props.excludeFileList,$props.excludeScanFileList"
+	List<PathMatcher> excludeMatchers = createPathMatcherPattern(excludeFileList)
 
 	verifyCollections(repositoryClient)
 
