@@ -188,6 +188,8 @@ def createCompileCommand(String buildFile, LogicalFile logicalFile, String membe
 	}
 	
 	compile.dd(new DDStatement().name("SYSPRINT").options(props.cobol_printTempOptions))
+	compile.dd(new DDStatement().name("SYSTERM").options(props.cobol_termTempOptions))
+	compile.dd(new DDStatement().name("SYSTERMP").options(props.cobol_termpTempOptions))
 	compile.dd(new DDStatement().name("SYSMDECK").options(props.cobol_tempOptions))
 	(1..17).toList().each { num ->
 		compile.dd(new DDStatement().name("SYSUT$num").options(props.cobol_tempOptions))
@@ -254,7 +256,9 @@ def createCompileCommand(String buildFile, LogicalFile logicalFile, String membe
 	}
 
 	// add a copy command to the compile command to copy the SYSPRINT from the temporary dataset to an HFS log file
-	compile.copy(new CopyToHFS().ddName("SYSPRINT").file(logFile).hfsEncoding(props.logEncoding))
+	compile.copy(new CopyToHFS().ddName("SYSTERM").file(logFile).hfsEncoding(props.logEncoding))
+	compile.copy(new CopyToHFS().ddName("SYSTERMP").file(logFile).hfsEncoding(props.logEncoding).append(true))
+	compile.copy(new CopyToHFS().ddName("SYSPRINT").file(logFile).hfsEncoding(props.logEncoding).append(true))
 
 	return compile
 }
