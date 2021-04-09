@@ -93,7 +93,7 @@ else {
 def dbbConf = System.getenv("DBB_CONF")
 loadMap.each { ds, loadList -> 
 
-	println("** Dataset: $ds")
+	println("** Dataset: ${ds}")
 
 	String jcl = generateJCL(ds, props.destination, loadList)
 
@@ -106,7 +106,7 @@ loadMap.each { ds, loadList ->
 	else {
 		// Create jclExec
 		def copyJCL = new JCLExec().text(jcl)
-		//copyJCL.confDir(dbbConf)
+		copyJCL.confDir(dbbConf)
 
 		// Execute jclExec
 		copyJCL.execute()
