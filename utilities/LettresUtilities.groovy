@@ -129,7 +129,7 @@ def createScanCommand(String buildFile, String srcPDS, String member, File depen
 	scan.dd(new DDStatement().name("SYSOUT").output(true))
 
 	// add a copy command to the scan command to copy the SYSPRINT from the temporary dataset to an HFS log file
-	scan.copy(new CopyToHFS().ddName("PCPY0502").file(dependencyListFile)
+	scan.copy(new CopyToHFS().ddName("PCPY0502").file(dependencyListFile))
 	scan.copy(new CopyToHFS().ddName("SYSOUT").file(logFile).hfsEncoding(props.logEncoding))
 	
 	return scan
