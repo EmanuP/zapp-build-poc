@@ -280,3 +280,43 @@ def getCurrentChangedFiles(String gitDir, String currentHash, String verbose) {
 	]
 }
 
+/*
+ * Returns the Git Repo Name
+ *
+ * @param  String gitDir  		Local Git repository directory
+ * @return String repoName       The Git Repo Name
+ */
+def getGitRepoName(String gitDir) {
+	String cmd = "git -C $gitDir rev-parse --show-toplevel"
+	StringBuffer repoName = new StringBuffer()
+	StringBuffer gitError = new StringBuffer()
+
+	Process process = cmd.execute()
+	process.waitForProcessOutput(repoName, gitError)
+	if (gitError) {
+		print("*! Error executing Git command: $cmd error: $gitError")
+	}
+
+	return repoName.toString().trim().split('/').last()
+}
+
+/*
+ * Returns the Last Commit Log
+ *
+ * @param  String gitDir  		Local Git repository directory
+ * @return String log           The Log of the last commit
+ */
+def getGitLog(String gitDir) {
+	String cmd = "git -C $gitDir log -n 1"
+	StringBuffer gitStdout = new StringBuffer()
+	StringBuffer gitError = new StringBuffer()
+
+	Process process = cmd.execute()
+	process.waitForProcessOutput(gitStdout, gitError)
+	if (gitError) {
+		print("*! Error executing Git command: $cmd error: $gitError")
+	}
+	else {
+		return gitStdout.toString()
+	}
+}

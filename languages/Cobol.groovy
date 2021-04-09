@@ -11,6 +11,7 @@ import com.ibm.jzos.ZFile
 @Field def buildUtils= loadScript(new File("${props.zAppBuildDir}/utilities/BuildUtilities.groovy"))
 @Field def impactUtils= loadScript(new File("${props.zAppBuildDir}/utilities/ImpactUtilities.groovy"))
 @Field def bindUtils= loadScript(new File("${props.zAppBuildDir}/utilities/BindUtilities.groovy"))
+@Field def gitUtils= loadScript(new File("${props.zAppBuildDir}/utilities/GitUtilities.groovy"))
 @Field RepositoryClient repositoryClient
 
 println("** Building files mapped to ${this.class.getName()}.groovy script")
@@ -51,6 +52,7 @@ sortedList.each { buildFile ->
 	File logFile = new File( props.userBuild ? "${props.buildOutDir}/${member}.log" : "${props.buildOutDir}/${member}.cobol.log")
 	if (logFile.exists())
 		logFile.delete()
+	if (!props.userBuild) createLogHeader(logFile, buildFile)
 	MVSExec compile = createCompileCommand(buildFile, logicalFile, member, logFile)
 	MVSExec linkEdit = createLinkEditCommand(buildFile, logicalFile, member, logFile)
 
@@ -256,7 +258,7 @@ def createCompileCommand(String buildFile, LogicalFile logicalFile, String membe
 	}
 
 	// add a copy command to the compile command to copy the SYSPRINT from the temporary dataset to an HFS log file
-	compile.copy(new CopyToHFS().ddName("SYSTERM").file(logFile).hfsEncoding(props.logEncoding))
+	compile.copy(new CopyToHFS().ddName("SYSTERM").file(logFile).hfsEncoding(props.logEncoding).append(true))
 	compile.copy(new CopyToHFS().ddName("SYSTERMP").file(logFile).hfsEncoding(props.logEncoding).append(true))
 	compile.copy(new CopyToHFS().ddName("SYSPRINT").file(logFile).hfsEncoding(props.logEncoding).append(true))
 
@@ -357,4 +359,55 @@ def getRepositoryClient() {
 		repositoryClient = new RepositoryClient().forceSSLTrusted(true)
 
 	return repositoryClient
+}
+
+def createLogHeader(File logFile, String buildFile){
+    def srcGitLog = [:]
+
+	List<String> srcDirs = []
+    if (props.applicationSrcDirs)
+        srcDirs.addAll(props.applicationSrcDirs.trim().split(','))
+
+    srcDirs.each { srcDir ->
+        srcDir = buildUtils.getAbsolutePath(srcDir)
+        if (gitUtils.isGitDir(srcDir)) {
+                String gitRepo = gitUtils.getGitRepoName(srcDir)
+                String gitLog = gitUtils.getGitLog(srcDir)
+                srcGitLog[gitRepo] = gitLog
+        }
+    }
+
+    String rulesJSON = props.getFileProperty('cobol_resolutionRules', buildFile)
+    List<ResolutionRule> rules = buildUtils.parseResolutionRules(rulesJSON)
+
+    rules.each { rule ->
+        rule.getSearchPath().each { path ->
+            String srcDir = buildUtils.getAbsolutePath(path.getDirectory())
+            if (gitUtils.isGitDir(srcDir)) {
+                String gitRepo = gitUtils.getGitRepoName(srcDir)
+                String gitLog = gitUtils.getGitLog(srcDir)
+                srcGitLog[gitRepo] = gitLog
+            }
+        }
+    }
+
+	String enc = props.logEncoding ?: 'IBM-1047'
+    logFile.withWriter(enc) { writer ->
+        writer.writeLine "*"
+        writer.writeLine "*   LOG FILE FOR ${CopyToPDS.createMemberName(buildFile)} "
+        if(srcGitLog){
+			    writer.writeLine "*"
+                writer.writeLine "*   ASSOCIATED GIT REPOSITORIES: "
+                srcGitLog.each { repo, log ->
+					writer.writeLine "*"
+                	writer.writeLine "*    - ${repo}:"
+					log.split( '\n' ).each() { line ->
+					            writer.writeLine "*      ${line}"
+					}
+                }
+        }
+        writer.writeLine "*"
+		writer.writeLine ""
+
+    }
 }
