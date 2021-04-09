@@ -51,7 +51,7 @@ def buildResult = buildReport.getRecords().findAll{it.getType()==DefaultRecordFa
 println("** Find deployable outputs in the build report ")
 
 // finds all the build outputs with a "LOAD" deployType
-def executes= buildReport.getRecords().findAll{
+def executes = buildReport.getRecords().findAll{
 	try {
 		it.getType()==DefaultRecordFactory.TYPE_EXECUTE &&
 				!it.getOutputs().findAll{ o ->
